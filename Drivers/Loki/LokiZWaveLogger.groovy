@@ -40,6 +40,8 @@ metadata {
 
     input name: "ip", title: "FQDN or IP Address", type: "text", defaultValue: "192.168.1.1", required: true
     input name: "port", title: "API Port", type: "number", defaultValue: 3100, required: true
+    input name: "loki_user", title: "Loki Cloud API Username", type: "text", defaultValue: "", required: false
+    input name: "loki_pass", title: "Loki Cloud API Key", type: "text", defaultValue: "", required: false  
     input name: "queueMaxSize", title: "Queue Max Size", type: "number", defaultValue: 5000, required: true
     input name: "deviceDetails", title: "Device Details", description: "Collects additional device details (Additional authentication is required if the <b>Hub Login Security</b> is Enabled)", type: "enum", options:[[0:"Disabled"], [1:"Enabled"]], defaultValue: 0, required: true
     input name: "he_usr", title: "HE User", type: "text", description: "Only if <b>Hub Login Security</b> is Enabled", defaultValue: "", required: false
@@ -292,14 +294,28 @@ void pushLogFromQueue() {
   }
 
   try {
-    Map postParams = [
-      uri: "http://${ip}:${port}/api/prom/push",
-      requestContentType: 'application/json',
-      contentType: 'application/json',
-      headers: ['Content-type':'application/json'],
-      body : evt
-    ]
-    asynchttpPost('logResponse', postParams, [data: sendQueue])
+    if (loki_user != null && loki_pass != null) { 
+    // Use Loki Cloud Connector if API Key present (only HTTPS 443 supported)
+      Map postParams = [
+       uri: "https://${ip}/api/prom/push",
+       requestContentType: 'application/json',
+       contentType: 'application/json',
+       headers: [
+         'Authorization': "Basic " + ("${loki_user}:${loki_pass}").bytes.encodeBase64().toString(),
+         'Content-type':'application/json'],
+       body : evt
+      ]
+      asynchttpPost('logResponse', postParams, [data: sendQueue])
+    } else {
+      Map postParams = [
+       uri: "http://${ip}:${port}/api/prom/push",
+       requestContentType: 'application/json',
+       contentType: 'application/json',
+       headers: ['Content-type':'application/json'],
+       body : evt
+      ]
+      asynchttpPost('logResponse', postParams, [data: sendQueue])      
+    }
 
   } catch (e) {
     logger("error", "pushLogFromQueue() - Sending Logs: ${e}")
@@ -314,15 +330,21 @@ void logResponse(hubResponse, payload) {
   try {
     if (hubResponse?.status < 300) { // OK
       logger("info", "Sent Logs: ${sendQueue.size()}")
-      logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
-      sendQueue = []
+      if (loki_user != null && loki_pass !=  null) { 
+          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
+      } else {
+          logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
+      }      sendQueue = []
 
     } else { // Failed
       String errData = hubResponse?.getErrorData()
       String errMsg = hubResponse?.getErrorMessage()
       logger("warn", "Failed Sending Logs - QueueSize: ${sendQueue?.size()}, Response: ${hubResponse?.status}, Error: ${errData} ${errMfg}")
-      logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
-      if (sendQueue?.size() >= queueMaxSize) {
+      if (loki_user != null && loki_pass != null) { 
+          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
+      } else {
+          logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
+      }      if (sendQueue?.size() >= queueMaxSize) {
         logger("error", "Maximum Queue size reached: ${sendQueue?.size()} >= ${queueMaxSize}, all current logs have been droped")
         sendQueue = []
       }
