@@ -334,7 +334,8 @@ void logResponse(hubResponse, payload) {
           logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
-      }      sendQueue = []
+      }      
+      sendQueue = []
 
     } else { // Failed
       String errData = hubResponse?.getErrorData()
@@ -344,7 +345,8 @@ void logResponse(hubResponse, payload) {
           logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
-      }      if (sendQueue?.size() >= queueMaxSize) {
+      }      
+      if (sendQueue?.size() >= queueMaxSize) {
         logger("error", "Maximum Queue size reached: ${sendQueue?.size()} >= ${queueMaxSize}, all current logs have been droped")
         sendQueue = []
       }
