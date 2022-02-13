@@ -39,7 +39,7 @@ metadata {
     }
 
     input name: "ip", title: "FQDN or IP Address", type: "text", defaultValue: "192.168.1.1", required: true
-    input name: "port", title: "API Port", type: "number", defaultValue: 3100, required: true
+    input name: "port", title: "API Port (if cloud, ignored)", type: "number", defaultValue: 3100, required: true
     input name: "loki_user", title: "Loki Cloud API Username", type: "text", defaultValue: "", required: false
     input name: "loki_pass", title: "Loki Cloud API Key", type: "text", defaultValue: "", required: false  
     input name: "queueMaxSize", title: "Queue Max Size", type: "number", defaultValue: 5000, required: true
@@ -202,9 +202,9 @@ void pushLogFromQueue() {
 
   try {
       if (loki_user != "" && loki_pass != "") { 
-        // Use Loki Cloud Connector if API Key present
+        // Use Loki Cloud Connector if API Key present (only HTTPS 443 supported)
         Map postParams = [
-            uri: "https://${loki_user}:${loki_pass}@${ip}:${port}/loki/api/v1/push",
+            uri: "https://${loki_user}:${loki_pass}@${ip}/loki/api/v1/push",
           requestContentType: 'application/json',
           contentType: 'application/json',
           headers: ['Content-type':'application/json'],
@@ -236,7 +236,7 @@ void logResponse(hubResponse, payload) {
     if (hubResponse?.status < 300) { // OK
       logger("info", "Sent Logs: ${sendQueue.size()}")
       if (loki_user != "" && loki_pass != "") { 
-          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}:${port}/loki/api/v1/push, Response: ${hubResponse.status}, Payload: ${payload}")
+          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/loki/api/v1/push, Response: ${hubResponse.status}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
       }
@@ -247,7 +247,7 @@ void logResponse(hubResponse, payload) {
       String errMsg = hubResponse?.getErrorMessage()
       logger("warn", "Failed Sending Logs - QueueSize: ${sendQueue?.size()}, Response: ${hubResponse?.status}, Error: ${errData} ${errMfg}")
       if (loki_user != "" && loki_pass != "") { 
-                    logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}:${port}/loki/api/v1/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
+                    logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/loki/api/v1/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
       }
