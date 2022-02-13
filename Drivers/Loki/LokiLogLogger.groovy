@@ -199,31 +199,32 @@ void pushLogFromQueue() {
     asyncInProgress = false
     return
   }
-
+  logger("info","EVT: ${evt}")
   try {
-      if (loki_user != "" && loki_pass != "") { 
+      if (loki_user != null && loki_pass != null) { 
         // Use Loki Cloud Connector if API Key present (only HTTPS 443 supported)
         Map postParams = [
-            uri: "https://${loki_user}:${loki_pass}@${ip}/loki/api/v1/push",
+          uri: "https://${ip}/api/prom/push",
           requestContentType: 'application/json',
           contentType: 'application/json',
-          headers: ['Content-type':'application/json'],
+          headers: [
+              'Authorization': "Basic " + ("${loki_user}:${loki_pass}").bytes.encodeBase64().toString(),
+              'Content-type':'application/json'],
           body : evt
-        ]
-          
+        ] 
+        asynchttpPost('logResponse', postParams, [data: sendQueue])
       } else { 
         Map postParams = [
-            uri: "http://${ip}:${port}/api/prom/push",
+          uri: "http://${ip}:${port}/api/prom/push",
           requestContentType: 'application/json',
           contentType: 'application/json',
           headers: ['Content-type':'application/json'],
           body : evt
         ]
+        asynchttpPost('logResponse', postParams, [data: sendQueue])
       }
-    asynchttpPost('logResponse', postParams, [data: sendQueue])
-
   } catch (e) {
-    logger("error", "pushLogFromQueue() - Sending Logs: ${e}")
+      logger("error", "pushLogFromQueue() - Sending Logs: ${e} ${postParams.uri}")
     asyncInProgress = false
   }
 
@@ -235,8 +236,8 @@ void logResponse(hubResponse, payload) {
   try {
     if (hubResponse?.status < 300) { // OK
       logger("info", "Sent Logs: ${sendQueue.size()}")
-      if (loki_user != "" && loki_pass != "") { 
-          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/loki/api/v1/push, Response: ${hubResponse.status}, Payload: ${payload}")
+      if (loki_user != null && loki_pass !=  null) { 
+          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Payload: ${payload}")
       }
@@ -246,8 +247,8 @@ void logResponse(hubResponse, payload) {
       String errData = hubResponse?.getErrorData()
       String errMsg = hubResponse?.getErrorMessage()
       logger("warn", "Failed Sending Logs - QueueSize: ${sendQueue?.size()}, Response: ${hubResponse?.status}, Error: ${errData} ${errMfg}")
-      if (loki_user != "" && loki_pass != "") { 
-                    logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/loki/api/v1/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
+      if (loki_user != null && loki_pass != null) { 
+          logger("trace", "logResponse() - LokiCloudAPI: User: ${loki_user} https://${ip}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
       } else {
           logger("trace", "logResponse() - API: http://${ip}:${port}/api/prom/push, Response: ${hubResponse.status}, Error: ${errData} ${errMfg}, Headers: ${hubResponse?.headers}, Payload: ${payload}")
       }
