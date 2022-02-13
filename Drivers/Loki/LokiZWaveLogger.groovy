@@ -454,7 +454,7 @@ private logger(level, msg) {
 }
 
 def updateCheck() {
-  Map params = [uri: "https://raw.githubusercontent.com/syepes/Hubitat/master/Drivers/Loki/LokiZWaveLogger.groovy"]
+  Map params = [uri: "https://raw.githubusercontent.com/wizkidorg/Hubitat-5/master/Drivers/Loki/LokiZWaveLogger.groovy"]
   asynchttpGet("updateCheckHandler", params)
 }
 
